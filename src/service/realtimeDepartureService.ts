@@ -7,6 +7,7 @@ import { Departure, Departures } from "../client/model/Departures";
 const TEN_MINUTES = 600000;
 export const NO_DEPARTURES: string[] = ["?"];
 const departureCache = new cache.Cache();
+export const NEXT_N_DEPARTURES_LIMIT = 3;
 
 export async function findNextDeparture(
   nextDepartureRequest: NextDepartureRequest
@@ -29,6 +30,27 @@ export async function findNextDeparture(
     nextDeparture,
     nextDepartureRequest.displayLineNumber
   );
+}
+
+export async function findNextNDepartures(
+  nextDepartureRequest: NextDepartureRequest
+) {
+  const responseData = await getDepartures(nextDepartureRequest.siteId);
+  logger.debug(`got departures ${JSON.stringify(responseData)}`);
+  const departuresForTransportMode = extractTransportModeDepartures(
+    responseData,
+    nextDepartureRequest
+  );
+  logger.debug(
+    `extracted departures ${JSON.stringify(departuresForTransportMode)}`
+  );
+  const nextDepartures: Departure[] = extractNextNDepartures(
+    departuresForTransportMode,
+    nextDepartureRequest,
+    NEXT_N_DEPARTURES_LIMIT,
+  );
+  logger.debug(`extracted next departure ${JSON.stringify(nextDepartures)}`);
+  return formatFirstNDeparturesResponse(nextDepartures);
 }
 
 async function getDepartures(siteId: number): Promise<Departure[]> {
@@ -81,6 +103,50 @@ function extractDeparture(
         calculateMinutesLeft(departure.expected) >=
         nextDepartureRequest.skipMinutes
     );
+}
+
+function extractNextNDepartures(
+  departures: Departure[],
+  nextDepartureRequest: NextDepartureRequest,
+  limit: number,
+): Departure[] {
+  return departures
+    .filter(
+      (departure) =>
+        nextDepartureRequest.lineNumbers.length == 0 ||
+        nextDepartureRequest.lineNumbers.indexOf(`${departure.line.id}`) > -1
+    )
+    .filter(
+      (departure) =>
+        departure.direction_code === nextDepartureRequest.journeyDirection
+    )
+    .sort(
+      (departure1, departure2) =>
+        new Date(departure1.expected).getTime() -
+        new Date(departure2.expected).getTime()
+    )
+    .filter(
+      (departure) =>
+        calculateMinutesLeft(departure.expected) >=
+        nextDepartureRequest.skipMinutes
+    )
+    .slice(0, limit);
+}
+
+function formatFirstNDeparturesResponse(
+  nextDepartures: Departure[],
+): string[] {
+  if (nextDepartures) {
+    const lines: string[] = []
+    
+    nextDepartures.forEach((departure) => {
+      lines.push(`${departure.line.id}`),
+      lines.push(`${calculateMinutesLeft(departure.expected)} min`)
+    });
+    return lines
+  } else {
+    return NO_DEPARTURES;
+  }
 }
 
 function formatDepartureResponse(

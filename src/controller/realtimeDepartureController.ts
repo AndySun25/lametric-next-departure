@@ -3,7 +3,7 @@ import {
   NextDepartureRequest,
   toNextDepartureRequest,
 } from "../model/NextDepartureRequest";
-import { findNextDeparture } from "../service/realtimeDepartureService";
+import { findNextDeparture, findNextNDepartures } from "../service/realtimeDepartureService";
 import { createError, createResponse } from "../service/laMetricService";
 import logger from "../logger";
 import { NextDepartureResponse } from "../model/NextDepartureResponse";
@@ -34,6 +34,32 @@ export async function getNextDeparture(req, res) {
     const nextDepartureResponse = createError(INVALID_REQUEST, undefined);
     res.json(nextDepartureResponse);
     logWarn(nextDepartureRequest, nextDepartureResponse);
+  }
+}
+
+export async function getNextNDepartures(req, res) {
+  const nextDepartureRequest = toNextDepartureRequest(req);
+  if (isValid(nextDepartureRequest)) {
+    try {
+      const nextNDepartures = await findNextNDepartures(nextDepartureRequest);
+      const nextNDeparturesResponse = createResponse(
+        nextNDepartures,
+        nextDepartureRequest.transportMode
+      );
+      res.json(nextNDeparturesResponse);
+      logInfo(nextDepartureRequest, nextNDeparturesResponse);
+    } catch (error) {
+      const nextNDeparturesResponse = createError(
+        ERROR,
+        nextDepartureRequest.transportMode
+      );
+      res.json(nextNDeparturesResponse);
+      logError(nextDepartureRequest, nextNDeparturesResponse, error);
+    }
+  } else {
+    const nextNDeparturesResponse = createError(INVALID_REQUEST, undefined);
+    res.json(nextNDeparturesResponse);
+    logWarn(nextDepartureRequest, nextNDeparturesResponse);
   }
 }
 

@@ -1,7 +1,7 @@
 import express from "express";
-import { getNextDeparture } from "./controller/realtimeDepartureController";
+import { getNextNDepartures } from "./controller/realtimeDepartureController";
 
 const router = express.Router();
-router.get("/next", (req, res) => getNextDeparture(req, res));
+router.get("/next", (req, res) => getNextNDepartures(req, res));
 
 export default router;
